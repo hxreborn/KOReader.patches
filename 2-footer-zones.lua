@@ -98,6 +98,10 @@ local function free_zones(self)
 	self.zone_containers = nil
 	self.zone_group = nil
 	self.dynamic_container = nil
+	self._zone_last_left = nil
+	self._zone_last_center = nil
+	self._zone_last_right = nil
+	self._zone_last_usable = nil
 end
 
 local orig_genAlignmentMenuItems = ReaderFooter.genAlignmentMenuItems
@@ -255,17 +259,37 @@ ReaderFooter._updateFooterText = function(self, force_repaint, full_repaint)
 		end
 	end
 
-	self.zone_texts.left:setText(zone_text(self, zones[1]))
-	self.zone_texts.center:setText(zone_text(self, zones[2]))
-	self.zone_texts.right:setText(zone_text(self, zones[3]))
+	local lt = zone_text(self, zones[1])
+	local ct = zone_text(self, zones[2])
+	local rt = zone_text(self, zones[3])
 
 	local usable_w = sw - 2 * self.horizontal_margin
 	local zone_w = math.floor(usable_w / 3)
-	self.zone_containers.left.dimen.w = zone_w
-	self.zone_containers.center.dimen.w = usable_w - 2 * zone_w
-	self.zone_containers.right.dimen.w = zone_w
-	if self.dynamic_container.dimen then
-		self.dynamic_container.dimen.w = usable_w
+	local geom_changed = self._zone_last_usable ~= usable_w
+	local text_changed = force_repaint
+		or self._zone_last_left ~= lt
+		or self._zone_last_center ~= ct
+		or self._zone_last_right ~= rt
+
+	if not text_changed and not geom_changed then
+		return
+	end
+
+	self.zone_texts.left:setText(lt)
+	self.zone_texts.center:setText(ct)
+	self.zone_texts.right:setText(rt)
+	self._zone_last_left = lt
+	self._zone_last_center = ct
+	self._zone_last_right = rt
+
+	if geom_changed then
+		self.zone_containers.left.dimen.w = zone_w
+		self.zone_containers.center.dimen.w = usable_w - 2 * zone_w
+		self.zone_containers.right.dimen.w = zone_w
+		if self.dynamic_container.dimen then
+			self.dynamic_container.dimen.w = usable_w
+		end
+		self._zone_last_usable = usable_w
 	end
 
 	self.zone_group:resetLayout()
