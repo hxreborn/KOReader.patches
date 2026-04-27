@@ -1,43 +1,47 @@
 # KOReader.patches
 
-Userpatches for KOReader.
+Personal userpatches for KOReader. 
 
-## Installation
+## Install
 
-Drop the `.lua` file(s) into your device's `koreader/patches/` directory and restart KOReader. See the upstream guide: <https://github.com/koreader/koreader/wiki/User-patches>.
-
-## Compatibility
-
-- Minimum KOReader version: see each patch header
-- Last tested build: `v2025.10-81-g4186cde33_2026-01-06`
-
-## Patches
-
-| Patch | Description | Min version |
-|-------|-------------|-------------|
-| `2-footer-zones.lua` | Adds "Dynamic" alignment that distributes status-bar items across left / center / right zones | v2025.04-52 |
+Copy `.lua` files into `koreader/patches/` and restart KOReader. See the upstream [user-patches guide](https://github.com/koreader/koreader/wiki/User-patches).
 
 ## 2-footer-zones.lua
 
-Adds a fourth alignment option, **Dynamic**, alongside Left / Center / Right under *Status bar → Configure items → Alignment*. With Dynamic selected, the enabled status-bar items spread evenly across three zones:
+Adds Dynamic to Status bar → Configure items → Alignment*. Splits enabled items across left, center, right. 1 item centers; 2 items split L/R; 3+ spread evenly with leftovers in center.
 
-- 1 item → center
-- 2 items → left + right
-- 3 items → left + center + right
-- 4+ items → `floor(n/3)` on each side, the remainder in center
+<p align="center"><img src="assets/menu-dynamic.png" width="380" alt="Dynamic option in alignment menu"></p>
 
-Behaviour notes:
+<p><code>n = 1</code> (same as center)</p>
 
-- Skips silently when the progress bar is set to `alongside` (no zone layout in that mode)
-- Respects the `Items separator` setting (vbar / bullet / dot / none) via `genSeparator()`
-- Preserves merge-flag joins for items that combine, like custom text combos
-- Honours `compact_items` by substituting hair-spaces inside individual item text
-- Locates the alignment menu by behaviour-probing each radio's `checked_func`, so locale changes and upstream label edits don't break it
+![1 item](assets/dynamic-1.png)
 
-## Optional integration
+<p><code>n = 2</code></p>
 
-The patch tries to load `patches/guard.lua` (from [sebdelsol/KOReader.patches](https://github.com/sebdelsol/KOReader.patches)) for version gating. If `guard.lua` is present, the patch refuses to run on KOReader builds older than the declared minimum. If it's absent, the patch loads anyway and skips the version gate — the call is wrapped in `pcall`.
+![2 items](assets/dynamic-2.png)
+
+<p><code>n = 3</code></p>
+
+![3 items](assets/dynamic-3.png)
+
+<p><code>n = 4</code></p>
+
+![4 items](assets/dynamic-4.png)
+
+<p><code>n = 5</code></p>
+
+![5 items](assets/dynamic-5.png)
+
+<p><code>n = 6</code></p>
+
+![6 items](assets/dynamic-6.png)
+
+
+> [!NOTE]
+> Progress bar must be above/below items (not alongside).
+
+Min KOReader: `v2025.04-52`. Tested on `v2025.10-81-g4186cde33_2026-01-06`.
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE).
+[GPL-3.0](LICENSE).

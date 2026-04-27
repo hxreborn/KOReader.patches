@@ -6,11 +6,6 @@
 -- Requires: KOReader >= v2025.04-52
 -- Tested on: v2025.10-81
 
-local ok, guard = pcall(require, "patches/guard")
-if ok and guard:korDoesNotMeet("v2025.04-52") then
-	return
-end
-
 local BD = require("ui/bidi")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Geom = require("ui/geometry")
