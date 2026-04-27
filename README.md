@@ -8,7 +8,11 @@ Copy `.lua` files into `koreader/patches/` and restart KOReader. See the upstrea
 
 ## 2-footer-zones.lua
 
-Adds Dynamic to Status bar → Configure items → Alignment*. Splits enabled items across left, center, right. 1 item centers; 2 items split L/R; 3+ spread evenly with leftovers in center.
+Adds Dynamic alignment to Status bar → Configure items → Alignment.
+
+Dynamic spreads enabled items across left, center, and right zones:
+1 item is centered, 2 items are split left/right, and 3+ items are distributed evenly,
+with any leftover items placed in the center.
 
 <p align="center"><img src="assets/menu-dynamic.png" width="380" alt="Dynamic option in alignment menu"></p>
 
