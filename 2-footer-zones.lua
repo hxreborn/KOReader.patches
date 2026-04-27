@@ -19,13 +19,11 @@ local _ = require("gettext")
 
 local HAIR_SPACE = "\226\128\138"
 
--- KOReader exposes this generator map for tests
 local gen_map = ReaderFooter.textGeneratorMap
 if not gen_map then
 	return
 end
 
--- Keep left/right counts equal and give the remainder to center
 local function split_zones(n)
 	if n <= 0 then
 		return 0, 0
@@ -51,7 +49,6 @@ local function zone_text(self, modes)
 				if self.settings.item_prefix == "compact_items" then
 					t = t:gsub("%s", HAIR_SPACE)
 				end
-				-- Upstream merge removes separators on both sides of custom text
 				if merge or prev_had_merge then
 					if #parts == 0 then
 						parts[1] = t
@@ -65,14 +62,12 @@ local function zone_text(self, modes)
 			end
 		end
 	end
-	-- Wrap merge-joined text as one bidi unit
 	for i = 1, #parts do
 		parts[i] = BD.wrap(parts[i])
 	end
 	return table.concat(parts, BD.wrap(self:genSeparator()))
 end
 
--- dynamic_filler measures width for KOReader's stock footer layout
 local function enabled_items(self)
 	local items = {}
 	for _, m in ipairs(self.mode_index) do
@@ -83,20 +78,26 @@ local function enabled_items(self)
 	return items
 end
 
--- Restore the stock child before freeing zones because upstream leaves text_container[1] alone
+-- Restore the original text_container in horizontal_group before tearing down zones
 local function free_zones(self)
 	if not self.zone_texts then
 		return
 	end
+	if self.dynamic_container and self.horizontal_group and self.text_container then
+		for i, child in ipairs(self.horizontal_group) do
+			if child == self.dynamic_container then
+				self.horizontal_group[i] = self.text_container
+				break
+			end
+		end
+	end
 	for _, w in pairs(self.zone_texts) do
 		w:free()
-	end
-	if self.text_container and self.footer_text then
-		self.text_container[1] = self.footer_text
 	end
 	self.zone_texts = nil
 	self.zone_containers = nil
 	self.zone_group = nil
+	self.dynamic_container = nil
 end
 
 local orig_genAlignmentMenuItems = ReaderFooter.genAlignmentMenuItems
@@ -115,7 +116,6 @@ ReaderFooter.genAlignmentMenuItems = function(self, value)
 			end,
 		}
 	end
-	-- Parent label path where upstream has no "dynamic" key
 	if value == nil and self.settings.align == "dynamic" then
 		return _("dynamic")
 	end
@@ -129,7 +129,6 @@ local function checked_with_align(self, item, value)
 		return false
 	end
 	local old_align = self.settings.align
-	-- Probe one checked_func call, then restore the plain settings table
 	self.settings.align = value
 	local ok, checked = pcall(item.checked_func)
 	self.settings.align = old_align
@@ -182,7 +181,6 @@ ReaderFooter.addToMainMenu = function(self, menu_items)
 	if not align_sub then
 		return
 	end
-	-- Cache Dynamic text because `for _, ...` would shadow the gettext alias
 	local dyn_t = _("Dynamic")
 	for _, item in ipairs(align_sub) do
 		if item.text == dyn_t then
@@ -200,6 +198,9 @@ ReaderFooter.updateFooterContainer = function(self)
 	if self.settings.align ~= "dynamic" or self.settings.progress_bar_position == "alongside" then
 		return
 	end
+	if not self.text_container or not self.horizontal_group then
+		return
+	end
 
 	self.zone_texts = {
 		left = TextWidget:new({ text = "", face = self.footer_text_face, bold = self.settings.text_font_bold }),
@@ -211,13 +212,22 @@ ReaderFooter.updateFooterContainer = function(self)
 		center = CenterContainer:new({ dimen = Geom:new({ w = 0, h = self.height }), self.zone_texts.center }),
 		right = RightContainer:new({ dimen = Geom:new({ w = 0, h = self.height }), self.zone_texts.right }),
 	}
-	-- KOReader owns horizontal_group so replace only the text_container child
 	self.zone_group = HorizontalGroup:new({
 		self.zone_containers.left,
 		self.zone_containers.center,
 		self.zone_containers.right,
 	})
-	self.text_container[1] = self.zone_group
+	-- Own container avoids upstream's per-refresh resize of text_container.dimen.w
+	self.dynamic_container = LeftContainer:new({
+		dimen = Geom:new({ w = 0, h = self.height }),
+		self.zone_group,
+	})
+	for i, child in ipairs(self.horizontal_group) do
+		if child == self.text_container then
+			self.horizontal_group[i] = self.dynamic_container
+			break
+		end
+	end
 end
 
 local orig_updateFooterText = ReaderFooter._updateFooterText
@@ -249,18 +259,19 @@ ReaderFooter._updateFooterText = function(self, force_repaint, full_repaint)
 	self.zone_texts.center:setText(zone_text(self, zones[2]))
 	self.zone_texts.right:setText(zone_text(self, zones[3]))
 
-	-- Center gets the pixel remainder
 	local usable_w = sw - 2 * self.horizontal_margin
 	local zone_w = math.floor(usable_w / 3)
 	self.zone_containers.left.dimen.w = zone_w
 	self.zone_containers.center.dimen.w = usable_w - 2 * zone_w
 	self.zone_containers.right.dimen.w = zone_w
-	self.text_container.dimen.w = usable_w
+	if self.dynamic_container.dimen then
+		self.dynamic_container.dimen.w = usable_w
+	end
 
 	self.zone_group:resetLayout()
 	self.horizontal_group:resetLayout()
 
-	if force_repaint and self.footer_content then
+	if self.footer_content then
 		UIManager:setDirty(self, "ui", self.footer_content.dimen)
 	end
 end
